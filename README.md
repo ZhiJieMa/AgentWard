@@ -1,6 +1,6 @@
 # AgentWard · 玄甲OS
 
-**AgentWard (玄甲)** is the full-lifecycle security operating system for AI agents — purpose-built security framework for trustworthy, scalable AI agent deployment.
+**AgentWard (玄甲)** is the full-lifecycle security operating system for AI agents, purpose-built security framework for trustworthy, scalable AI agent deployment.
 Natively integrated with OpenClaw, AgentWard unifies agent onboarding, secure reasoning, and trusted execution in one cohesive security architecture, with upcoming native support for other leading mainstream agent frameworks. Its heterogeneous defense-in-depth design rearchitects the agent workflow into five coordinated security layers across startup, perception, memory, decision-making, and execution, with dynamic cross-stage protections that verify foundation integrity, block adversarial deception, stop memory tampering, and validate every autonomous decision and high-risk command —  a complete, end-to-end closed security loop that delivers on the promise of "trustworthy at inception, controllable throughout the process, and reliable in outcomes".
 
 ## Why AgentWard
@@ -108,47 +108,47 @@ Enforces safety boundaries at the point of execution.
 ### 🏆 Full Stack System Implementation
 
 - 📐 System Infrastructure Framework
-    - ✅ Plugin-Native Modular Architecture
-    - ✅ Base Adapters Suite
-    - ✅ Core Detection Engine
-        - ✅ Heuristic Rule-Based Detection Module
-        - ✅ Intent Risk Judgment System
-        - 🚀 Trust-Based Risk Assessment Capability
+  - ✅ Plugin-Native Modular Architecture
+  - ✅ Base Adapters Suite
+  - ✅ Core Detection Engine
+    - ✅ Heuristic Rule-Based Detection Module
+    - ✅ Intent Risk Judgment System
+    - 🚀 Trust-Based Risk Assessment Capability
 - 🏗️ Foundation Scan Layer
-    - ✅ Rule-Based Injection & Jailbreak Detection
-    - ✅ Input Semantic Coherence Evaluation
-    - ✅ Fragmented Malicious Instruction Detection
-    - 🚀 Multi-Round Stealth Attack Detection
-    - 🚀 Malicious Content Secure Replacement
-    - 🚀 Multi-Modal Injection Attack Detection
+  - ✅ Rule-Based Injection & Jailbreak Detection
+  - ✅ Input Semantic Coherence Evaluation
+  - ✅ Fragmented Malicious Instruction Detection
+  - 🚀 Multi-Round Stealth Attack Detection
+  - 🚀 Malicious Content Secure Replacement
+  - 🚀 Multi-Modal Injection Attack Detection
 - 🧼 Input Sanitization Layer
-    - ✅ Rule-Based Injection & Jailbreak Detection
-    - ✅ Input Semantic Coherence Evaluation
-    - ✅ Fragmented Malicious Instruction Detection
-    - 🚀 Multi-Round Stealth Attack Detection
-    - 🚀 Malicious Content Secure Replacement
-    - 🚀 Multi-Modal Injection Attack Detection
+  - ✅ Rule-Based Injection & Jailbreak Detection
+  - ✅ Input Semantic Coherence Evaluation
+  - ✅ Fragmented Malicious Instruction Detection
+  - 🚀 Multi-Round Stealth Attack Detection
+  - 🚀 Malicious Content Secure Replacement
+  - 🚀 Multi-Modal Injection Attack Detection
 - 🧠 Cognition Protection Layer
-    - ✅ Memory Consistency Evaluation & Calibration
-    - 🚀 Malicious Memory Library Construction & Threat Matching
-    - 🚀 Memory Vectorization & Outlier Detection
-    - 🚀 Context Drift Detection & Correction
+  - ✅ Memory Consistency Evaluation & Calibration
+  - 🚀 Malicious Memory Library Construction & Threat Matching
+  - 🚀 Memory Vectorization & Outlier Detection
+  - 🚀 Context Drift Detection & Correction
 - 🎯 Decision Alignment Layer
-    - ✅ Agent Decision vs User Intent Consistency Validation
-    - ✅ Sensitive Operation Parameter Detection & Compliance Verification
-    - 🚀 Inference Trajectory Logic Audit
-    - 🚀 High-Risk Decision Action Recognition & Rewriting
+  - ✅ Agent Decision vs User Intent Consistency Validation
+  - ✅ Sensitive Operation Parameter Detection & Compliance Verification
+  - 🚀 Inference Trajectory Logic Audit
+  - 🚀 High-Risk Decision Action Recognition & Rewriting
 - 🔧 Execution Control Layer
-    - ✅ Real-Time Interception & Blocking of High-Risk System Instructions
-    - ✅ Behavioral Intent Analysis & Risk Assessment
-    - 🚀 Identity-Based Dynamic Permission Control & Access Restriction
-    - 🚀 Pre-Execution Security Validation for Agent Actions
-    - 🚀 Automatic Rollback & Recovery of Abnormal Execution States
-    - 🚀 eBPF-Powered System-Level Full Monitoring
-        - 🚀 Real-Time System Resource Usage Monitoring & Dynamic Restriction
-        - 🚀 Network Traffic Payload Audit & Anomaly Detection
+  - ✅ Real-Time Interception & Blocking of High-Risk System Instructions
+  - ✅ Behavioral Intent Analysis & Risk Assessment
+  - 🚀 Identity-Based Dynamic Permission Control & Access Restriction
+  - 🚀 Pre-Execution Security Validation for Agent Actions
+  - 🚀 Automatic Rollback & Recovery of Abnormal Execution States
+  - 🚀 eBPF-Powered System-Level Full Monitoring
+    - 🚀 Real-Time System Resource Usage Monitoring & Dynamic Restriction
+    - 🚀 Network Traffic Payload Audit & Anomaly Detection
 - 🤝 Layer Collaboration
-    - ✅ Global Information Aggregation & Risk Discovery
-    - 🚀 Historical Behavior-Based Trust Profile Construction
-    - 🚀 Role-Based Risk Rating & Dynamic Permission Allocation
-    - 🚀 Taint Propagation & System Audit
+  - ✅ Global Information Aggregation & Risk Discovery
+  - 🚀 Historical Behavior-Based Trust Profile Construction
+  - 🚀 Role-Based Risk Rating & Dynamic Permission Allocation
+  - 🚀 Taint Propagation & System Audit
