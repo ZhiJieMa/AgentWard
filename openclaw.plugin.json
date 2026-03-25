@@ -1,0 +1,280 @@
+{
+  "id": "agent-ward",
+  "name": "AgentWard",
+  "description": "Five-layer security guardrails for OpenClaw sessions.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "layers": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "trustedBase": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enableTrustedBaseDetection": {
+                "type": "boolean",
+                "description": "When enabled, detects security bypass instructions in system prompt files."
+              },
+              "enableIntervention": {
+                "type": "boolean",
+                "description": "When true, executes intervention measures (blocking tool calls) when threats are detected. When false, only performs detection, logging, and warning notifications without intervention."
+              },
+              "blockToolCallOnTrustBaseWarning": {
+                "type": "boolean",
+                "description": "When true, tool calls are blocked when security bypass is detected in system prompt files."
+              },
+              "detectMaliciousSkills": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "enable": {
+                    "type": "boolean",
+                    "description": "When enabled, scans skill files for malicious instructions."
+                  },
+                  "ruleBasedDetection": {
+                    "type": "boolean",
+                    "description": "When enabled, uses regex patterns to detect malicious content."
+                  },
+                  "semanticDetection": {
+                    "type": "boolean",
+                    "description": "When enabled, uses LLM to semantically analyze skill files."
+                  },
+                  "maxContentLength": {
+                    "type": "number",
+                    "description": "Maximum number of characters to analyze in semantic detection. Default: 65536"
+                  },
+                  "maxConcurrency": {
+                    "type": "number",
+                    "description": "Maximum number of skills to scan in parallel. Default: 10"
+                  }
+                }
+              },
+              "detectMisConfiguration": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "enable": {
+                    "type": "boolean",
+                    "description": "When enabled, scans configuration files for security misconfigurations."
+                  }
+                }
+              }
+            }
+          },
+          "inputSensing": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enableInputDetection": {
+                "type": "boolean",
+                "description": "When enabled, detects profanity and injection attempts in tool results."
+              },
+              "enableIntervention": {
+                "type": "boolean",
+                "description": "When true, executes intervention measures (blocking tool calls, covering responses) when threats are detected. When false, only performs detection, logging, and warning notifications without intervention."
+              },
+              "blockHarmfulInput": {
+                "type": "boolean",
+                "description": "When true, harmful content is blocked entirely. When false, a warning is appended to the content."
+              },
+              "coverContaminatedResponse": {
+                "type": "boolean",
+                "description": "When true, replaces the assistant's response (after receiving harmful tool results) with warning messages. Original assistant responses are not persisted."
+              }
+            }
+          },
+          "cognitiveState": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enableMemWriteDetection": {
+                "type": "boolean",
+                "description": "When enabled, detects abnormal patterns in memory file modifications."
+              },
+              "enableIntervention": {
+                "type": "boolean",
+                "description": "When true, blocks tool calls when memory anomalies are detected. When false, only performs detection, logging, and warning notifications without blocking."
+              }
+            }
+          },
+          "decisionAlign": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enableDecisionAlignDetection": {
+                "type": "boolean",
+                "description": "When enabled, monitors assistant responses for decision alignment issues."
+              },
+              "enableIntervention": {
+                "type": "boolean",
+                "description": "When true, temporarily blocks tool calls when decision misalignment is detected. When false, only performs detection, logging, and warning notifications without blocking."
+              }
+            }
+          },
+          "execControl": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enableToolCallDetection": {
+                "type": "boolean",
+                "description": "When enabled, detects dangerous commands in tool calls."
+              },
+              "enableIntervention": {
+                "type": "boolean",
+                "description": "When true, blocks dangerous tool calls. When false, only performs detection, logging, and warning notifications without blocking."
+              }
+            }
+          }
+        }
+      },
+      "llm": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Optional provider override for decision alignment model calls."
+          },
+          "model": {
+            "type": "string",
+            "description": "Optional model id override for decision alignment model calls."
+          },
+          "api": {
+            "type": "string",
+            "description": "Optional API type override (for example openai-completions, anthropic-messages)."
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "Optional base URL override for provider endpoint."
+          },
+          "apiKeyEnv": {
+            "type": "string",
+            "description": "Environment variable name for API key. Default: AGENT_WARD_API_KEY."
+          }
+        }
+      },
+      "logging": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": ["off", "basic", "event", "ctx", "full"],
+            "description": "Log verbosity level"
+          }
+        }
+      },
+      "worker": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "timeout": {
+            "type": "number",
+            "description": "Worker request timeout in milliseconds"
+          },
+          "debug": {
+            "type": "boolean",
+            "description": "Enable debug mode"
+          },
+          "logLevel": {
+            "type": "string",
+            "description": "Worker log level"
+          }
+        }
+      }
+    }
+  },
+  "uiHints": {
+    "layers.trustedBase.enableTrustedBaseDetection": {
+      "label": "Enable System Prompt Detection",
+      "help": "When enabled, detects security bypass instructions in system prompt files."
+    },
+    "llm.provider": {
+      "label": "LLM Provider",
+      "help": "Optional override. If set with model/api/baseUrl + env key, AgentWard uses this before runtime model resolution."
+    },
+    "llm.model": {
+      "label": "LLM Model",
+      "help": "Optional override model id for decision alignment."
+    },
+    "llm.api": {
+      "label": "LLM API Type",
+      "help": "Optional provider API type, for example openai-completions or anthropic-messages."
+    },
+    "llm.baseUrl": {
+      "label": "LLM Base URL",
+      "help": "Optional provider base URL for decision alignment model calls."
+    },
+    "llm.apiKeyEnv": {
+      "label": "LLM API Key Env",
+      "help": "Environment variable name for API key. Default: AGENT_WARD_API_KEY."
+    },
+    "layers.trustedBase.enableIntervention": {
+      "label": "Enable Trusted Base Intervention",
+      "help": "When true, blocks tool calls when threats are detected. When false, only logs and sends warnings without blocking."
+    },
+    "layers.trustedBase.blockToolCallOnTrustBaseWarning": {
+      "label": "Block Tool Calls on System Prompt Warning",
+      "help": "When true, tool calls are blocked when security bypass is detected in system prompt files."
+    },
+    "layers.inputSensing.enableInputDetection": {
+      "label": "Enable Input Detection",
+      "help": "When enabled, detects profanity and injection attempts in tool results."
+    },
+    "layers.inputSensing.enableIntervention": {
+      "label": "Enable Input Sensing Intervention",
+      "help": "When true, blocks tool calls and covers responses when threats are detected. When false, only logs and sends warnings without intervention."
+    },
+    "layers.inputSensing.blockHarmfulInput": {
+      "label": "Block Harmful Input",
+      "help": "When true, harmful content is blocked entirely. When false, a warning is appended to the content."
+    },
+    "layers.inputSensing.coverContaminatedResponse": {
+      "label": "Cover Contaminated Response",
+      "help": "When true, replaces the assistant's response (after receiving harmful tool results) with warning messages. Original assistant responses are not persisted."
+    },
+    "layers.cognitiveState.enableMemWriteDetection": {
+      "label": "Enable Memory Write Detection",
+      "help": "When enabled, detects abnormal patterns in memory file modifications."
+    },
+    "layers.cognitiveState.enableIntervention": {
+      "label": "Enable Cognitive State Intervention",
+      "help": "When true, blocks tool calls when memory anomalies are detected. When false, only logs and sends warnings without blocking."
+    },
+    "layers.decisionAlign.enableDecisionAlignDetection": {
+      "label": "Enable Decision Alignment Detection",
+      "help": "When enabled, monitors assistant responses for decision alignment issues."
+    },
+    "layers.decisionAlign.enableIntervention": {
+      "label": "Enable Decision Align Intervention",
+      "help": "When true, temporarily blocks tool calls when decision misalignment is detected. When false, only logs and sends warnings without blocking."
+    },
+    "layers.execControl.enableToolCallDetection": {
+      "label": "Enable Tool Call Detection",
+      "help": "When enabled, detects dangerous commands in tool calls."
+    },
+    "layers.execControl.enableIntervention": {
+      "label": "Enable Exec Control Intervention",
+      "help": "When true, blocks dangerous tool calls. When false, only logs and sends warnings without blocking."
+    },
+    "logging.level": {
+      "label": "Logging Level",
+      "help": "Control log verbosity: off, basic, event, ctx, or full"
+    },
+    "worker.timeout": {
+      "label": "Worker Timeout (ms)",
+      "help": "Timeout for worker requests in milliseconds. Default: 60000"
+    },
+    "worker.debug": {
+      "label": "Debug Mode",
+      "help": "Enable debug logging for worker"
+    },
+    "worker.logLevel": {
+      "label": "Worker Log Level",
+      "help": "Log level for worker: info, debug, warn, error"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@openclaw/agent-ward",
+  "version": "2026.3.11",
+  "private": true,
+  "description": "AgentWard security guard plugin for OpenClaw",
+  "type": "module",
+  "scripts": {
+    "test:trusted-base": "node test/trusted-base/run-detect-malicious-skills.mjs test/trusted-base",
+    "test:trusted-base:config": "node test/trusted-base/run-detect-misconfiguration.mjs test/trusted-base"
+  },
+  "dependencies": {
+    "@mariozechner/pi-ai": "^0.57.1",
+    "@mariozechner/pi-coding-agent": "^0.57.1",
+    "chalk": "^5.4.1",
+    "lodash-es": "^4.17.21",
+    "p-limit": "^7.3.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.3"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.12"
+  }
+}
