@@ -134,10 +134,8 @@ Enforces safety boundaries at the point of execution.
 - 📐 System Infrastructure Framework
   - ✅ Plugin-Native Modular Architecture
   - ✅ Base Adapters Suite
-  - ✅ Core Detection Engine
-    - ✅ Heuristic Rule-Based Detection Module
-    - ✅ Intent Risk Judgment System
-    - 🚀 Trust-Based Risk Assessment Capability
+  - 🚀 Plug-and-Play Algorithm Replacement Interface
+  - 🚀 System-Level MITM Hooks
 - 🏗️ Foundation Scan Layer
   - ✅ Rule-Based Injection & Jailbreak Detection
   - ✅ Input Semantic Coherence Evaluation
