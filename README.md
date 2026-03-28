@@ -190,4 +190,5 @@ Our roadmap is structured around a multi-layered defense architecture designed t
 
 ---
 
-**Authors:** Qi Li, Xinhao Deng, Yixiang Zhang, Jiaqing Wu, Yue Xiao, Rennai Qiu, Zhuoheng Zou, Jiaqi Bai, Jiaxing Song, and Ke Xu.
+**Authors:** [Qi Li](https://sites.google.com/site/qili2012), [Xinhao Deng](https://xinhao-deng.github.io/), Yixiang Zhang, Jiaqing Wu, Yue Xiao, Rennai Qiu, Zhuoheng Zou, Jiaqi Bai, Jiaxing Song, and Ke Xu  
+**Contact:** qli01@tsinghua.edu.cn (Qi Li)
