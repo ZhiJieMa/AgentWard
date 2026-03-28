@@ -129,53 +129,65 @@ Enforces safety boundaries at the point of execution.
 
 ## Roadmap
 
-### 🏆 Full Stack System Implementation
+### 🏆 End-to-End Full-Stack Security System
 
-- 📐 System Infrastructure Framework
-  - ✅ Plugin-Native Modular Architecture
-  - ✅ Base Adapters Suite
-  - ✅ Core Detection Engine
-    - ✅ Heuristic Rule-Based Detection Module
-    - ✅ Intent Risk Judgment System
-    - 🚀 Trust-Based Risk Assessment Capability
-- 🏗️ Foundation Scan Layer
-  - ✅ Global & Plugin Configuration Security Check
-  - ✅ Semantic-Based Malicious Skill Detection
-  - 🚀 Skill Source Validation
-  - 🚀 Plugin Dependency Analysis
-  - 🚀 Natural Language & Code Mixed Vulnerability Detection
-- 🧼 Input Sanitization Layer
-  - ✅ Rule-Based Injection & Jailbreak Detection
-  - ✅ Input Semantic Coherence Evaluation
-  - ✅ Fragmented Malicious Instruction Detection
-  - 🚀 Multi-Round Stealth Attack Detection
-  - 🚀 Malicious Content Secure Replacement
-  - 🚀 Multi-Modal Injection Attack Detection
-- 🧠 Cognition Protection Layer
-  - ✅ Memory Consistency Evaluation & Calibration
-  - 🚀 Malicious Memory Library Construction & Threat Matching
-  - 🚀 Memory Vectorization & Outlier Detection
-  - 🚀 Checkpoint-based Memory Recovery
-  - 🚀 Context Drift Detection & Correction
-- 🎯 Decision Alignment Layer
-  - ✅ Agent Decision vs. User Intent Consistency Validation
-  - 🚀 Static Rule Filtering & Compliance Verification
-  - 🚀 Multi-Step Trajectory Logic Audit
-  - 🚀 Risk-Driven Dynamic Permission Allocation
-  - 🚀 High-Risk Action Recognition & Safe Rewriting
-- 🔧 Execution Control Layer
-  - ✅ Real-Time Interception & Blocking of High-Risk System Instructions
-  - ✅ Behavioral Intent Analysis & Risk Assessment
-  - 🚀 Identity-Based Dynamic Permission Control & Access Restriction
-  - 🚀 Pre-Execution Security Validation for Agent Actions
-  - 🚀 Automatic Rollback & Recovery of Abnormal Execution States
-  - 🚀 eBPF-Powered System-Level Full Monitoring
-    - 🚀 Real-Time System Resource Usage Monitoring & Dynamic Restriction
-    - 🚀 Network Traffic Payload Audit & Anomaly Detection
-- 🤝 Layer Collaboration
-  - ✅ Global Information Aggregation & Risk Discovery
-  - 🚀 Historical Behavior-Based Trust Profile Construction
-  - 🚀 Role-Based Risk Rating & Dynamic Permission Allocation
-  - 🚀 Taint Propagation & System Audit
+Our roadmap is structured around a multi-layered defense architecture designed to secure the entire agent lifecycle, from configuration and input processing to cognition, decision-making, and execution.
 
-*(Legend: ✅ Completed | 🚀 Ongoing)*
+#### 📐 System Infrastructure Framework
+- ✅ Plugin-native modular architecture
+- ✅ Base adapter suite
+- ✅ Core detection engine
+  - ✅ Heuristic rule-based detection module
+  - ✅ Intent risk evaluation system
+  - 🚀 Trust-aware risk assessment capabilities
+
+#### 🏗️ Foundational Scanning Layer
+- ✅ Global and plugin-level configuration security checks
+- ✅ Semantic malicious skill detection
+- 🚀 Skill source verification
+- 🚀 Plugin dependency analysis
+- 🚀 Hybrid natural language and code vulnerability detection
+
+#### 🧼 Input Sanitization Layer
+- ✅ Rule-based injection and jailbreak detection
+- ✅ Semantic coherence analysis for user inputs
+- ✅ Fragmented malicious instruction detection
+- 🚀 Multi-turn stealth attack detection
+- 🚀 Secure malicious content rewriting and replacement
+- 🚀 Multimodal injection attack detection
+
+#### 🧠 Cognitive Protection Layer
+- ✅ Memory consistency evaluation and calibration
+- 🚀 Malicious memory corpus construction and threat matching
+- 🚀 Memory vectorization and outlier detection
+- 🚀 Checkpoint-based memory recovery
+- 🚀 Context drift detection and correction
+
+#### 🎯 Decision Alignment Layer
+- ✅ Consistency validation between agent decisions and user intent
+- 🚀 Static rule filtering and compliance verification
+- 🚀 Multi-step trajectory reasoning audit
+- 🚀 Risk-adaptive dynamic permission allocation
+- 🚀 High-risk action identification and safe rewriting
+
+#### 🔧 Execution Control Layer
+- ✅ Real-time interception and blocking of high-risk system instructions
+- ✅ Behavioral intent analysis and risk assessment
+- 🚀 Identity-aware dynamic permission control and access restriction
+- 🚀 Pre-execution security validation for agent actions
+- 🚀 Automatic rollback and recovery for abnormal execution states
+- 🚀 eBPF-powered system-level observability
+  - 🚀 Real-time resource monitoring and adaptive restriction
+  - 🚀 Network payload auditing and anomaly detection
+
+#### 🤝 Cross-Layer Collaboration
+- ✅ Global information aggregation and risk discovery
+- 🚀 Historical behavior-based trust profiling
+- 🚀 Role-aware risk scoring and dynamic permission allocation
+- 🚀 Taint propagation and end-to-end system auditing
+
+*Legend: ✅ Completed | 🚀 In Progress*
+
+---
+
+**Authors:** Qi Li, Xinhao Deng, Yixiang Zhang, Jiaqing Wu, Yue Xiao, Rennai Qiu, Zhuoheng Zou, Jiaqi Bai, Jiaxing Song, and Ke Xu.
