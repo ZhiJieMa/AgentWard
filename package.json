@@ -1,6 +1,6 @@
 {
   "name": "@openclaw/agent-ward",
-  "version": "2026.3.11",
+  "version": "2026.3.31",
   "private": true,
   "description": "AgentWard security guard plugin for OpenClaw",
   "type": "module",
@@ -16,7 +16,7 @@
     "p-limit": "^7.3.0"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.3.3"
+    "openclaw": ">=2026.3.22"
   },
   "openclaw": {
     "extensions": [
