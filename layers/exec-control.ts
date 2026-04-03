@@ -1,4 +1,52 @@
-import { Warning, INFINITE_LOOP_DETECTED, SYSTEM_DESTRUCTION_DETECTED, PRIVILEGE_ESCALATION_DETECTED, REMOTE_CODE_EXECUTION_DETECTED, REVERSE_SHELL_DETECTED, SENSITIVE_DATA_ACCESS_DETECTED, RESOURCE_EXHAUSTION_DETECTED } from "../warnings.ts";
+import { Warning } from "../warnings.ts";
+
+export const DANGEROUS_COMMAND_DETECTED = new Warning(
+  "Dangerous Command Detected",
+  "The system detected a potentially dangerous command in the tool call.",
+  ""
+);
+
+export const INFINITE_LOOP_DETECTED = new Warning(
+  "Infinite Loop Detected",
+  "The system detected a potential infinite loop in the command.",
+  ""
+);
+
+export const SYSTEM_DESTRUCTION_DETECTED = new Warning(
+  "System Destruction Command Detected",
+  "The system detected a command that could destroy system files or data.",
+  "Commands like rm -rf /, dd to disk devices, or disk formatting are blocked."
+);
+
+export const PRIVILEGE_ESCALATION_DETECTED = new Warning(
+  "Privilege Escalation Detected",
+  "The system detected a command attempting to elevate privileges dangerously.",
+  "Suspicious sudo usage or permission changes on critical paths are blocked."
+);
+
+export const REMOTE_CODE_EXECUTION_DETECTED = new Warning(
+  "Remote Code Execution Detected",
+  "The system detected an attempt to execute remote code.",
+  "Piping curl/wget output directly to shell is dangerous and blocked."
+);
+
+export const SENSITIVE_DATA_ACCESS_DETECTED = new Warning(
+  "Sensitive Data Access Detected",
+  "The system detected an attempt to access sensitive files.",
+  "Access to password files, SSH keys, API credentials, and environment variables is blocked."
+);
+
+export const REVERSE_SHELL_DETECTED = new Warning(
+  "Reverse Shell Detected",
+  "The system detected a potential reverse shell or backdoor command.",
+  "Network redirects to interactive shells are blocked."
+);
+
+export const RESOURCE_EXHAUSTION_DETECTED = new Warning(
+  "Resource Exhaustion Detected",
+  "The system detected a command that could exhaust system resources.",
+  "Fork bombs, disk fillers, and process killers are blocked."
+);
 
 // System destruction patterns - commands that could destroy data or system
 const SYSTEM_DESTRUCTION_PATTERNS: RegExp[] = [

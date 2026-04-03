@@ -1,4 +1,10 @@
-import { Warning, COGNITIVE_STATE_ANOMALY } from "../warnings.ts";
+import { Warning } from "../warnings.ts";
+
+export const COGNITIVE_STATE_ANOMALY = new Warning(
+  "Cognition State Anomaly Detected",
+  "Abnormal patterns detected in memory file modification.",
+  "Tell the user that some suspicious content is detected in the memory file modification, and the modification is blocked."
+);
 
 function detectPoisoning(text: string): boolean {
   const detectPatterns: RegExp[] = [

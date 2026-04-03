@@ -1,4 +1,16 @@
-import { Warning, INJECTION_DETECTED } from "../warnings.ts";
+import { Warning } from "../warnings.ts";
+
+export const INJECTION_DETECTED = new Warning(
+  "Injection Detected",
+  "The system detected potential prompt injection in the tool response.",
+  ""
+);
+
+export const PROFANITY_DETECTED = new Warning(
+  "Profanity Detected",
+  "The system detected inappropriate language in the tool response.",
+  ""
+);
 
 export function inputDetect(content: unknown): Warning | null {
   if (typeof content === "string") {

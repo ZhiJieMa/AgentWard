@@ -5,13 +5,22 @@ import { loadSkillsFromDir, type Skill } from "@mariozechner/pi-coding-agent";
 import { completeSimple, type Model, type Context, type AssistantMessage } from "@mariozechner/pi-ai";
 import { merge } from "lodash-es";
 import pLimit from "p-limit";
-import {
-  Warning,
-  MALICIOUS_SKILL_DETECTED,
-  MISCONFIGURATION_DETECTED,
-} from "../warnings.ts";
+import { Warning } from "../warnings.ts";
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import type { SessionState, LlmCallContext } from "../state.ts";
+
+export const MALICIOUS_SKILL_DETECTED = new Warning(
+  "Malicious Skill Detected",
+  "The system detected malicious instructions in skill files.",
+  ""
+);
+
+export const MISCONFIGURATION_DETECTED = new Warning(
+  "Misconfiguration Detected",
+  "The system detected risky security-related configuration in workspace files.",
+  ""
+);
+
 const MAX_TEXT_FILE_SIZE = 1024 * 1024;
 const TEXT_EXTENSIONS = new Set([
   ".md",

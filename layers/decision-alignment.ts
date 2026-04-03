@@ -1,7 +1,13 @@
-import { Warning, DECISION_MISALIGN } from "../warnings.ts";
+import { Warning } from "../warnings.ts";
 import { SessionState } from "../state.ts";
 import { getLogger } from "../logger.ts";
 import { callLLMSimple } from "../model-worker-manager.ts";
+
+export const DECISION_MISALIGN = new Warning(
+  "Decision Misalignment Detected",
+  "The assistant's response may have deviated from the intended decision path.",
+  ""
+);
 
 const MAX_TEXT_LEN = 400;
 const MAX_TOOL_ARGS_LEN = 200;
