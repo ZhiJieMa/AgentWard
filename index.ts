@@ -130,7 +130,7 @@ const plugin = {
 
       if (event.message.role == "assistant") {
         state.temp_block_tool_call = false;
-        if (config.layers.decisionAlignment.enableDecisionAlignmentDetection) {
+        if (config.layers.decisionAlignment.enableDecisionAlignmentDetection && event.message.stopReason == "toolUse") { // Only check for tool calling
           const warning = decisionAlignmentDetect(
             state,
             event.message
