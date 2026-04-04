@@ -218,6 +218,22 @@ export function generateRequestId(): string {
   return `${Date.now()}-${process.pid}-${requestCounter++}`;
 }
 
+export function restartWorker(
+  options: {
+    tmpDir: string;
+    config: { timeout: number; debug: boolean; logLevel: string };
+  }
+): PersistentWorker {
+  const existing = getWorker();
+  if (existing) {
+    try { existing.shutdown(); } catch {}
+    setWorker(null);
+  }
+  const worker = new PersistentWorker(options);
+  setWorker(worker);
+  return worker;
+}
+
 export function callLLMSync(
   request: syncLLMRequest<any>
 ): syncLLMResponse | null {

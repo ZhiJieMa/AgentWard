@@ -16,7 +16,7 @@ import { detectCognitionProtectionAnomaly } from "./layers/cognition-protection.
 import { decisionAlignmentDetect } from "./layers/decision-alignment.ts";
 import { toolCallDetect } from "./layers/exec-control.ts";
 import { initLogger, getLogger, initFileLog } from "./logger.ts";
-import { PersistentWorker, getWorker, setWorker} from "./model-worker-manager.ts";
+import { PersistentWorker, getWorker, setWorker, restartWorker} from "./model-worker-manager.ts";
 import { Warning } from "./warnings.ts";
 
 function send_message(state: SessionState, content: string) {
@@ -134,6 +134,21 @@ const plugin = {
       if (event.message.role == "assistant") {
         state.temp_block_tool_call = false;
         if (config.layers.decisionAlignment.enableDecisionAlignmentDetection && event.message.stopReason == "toolUse") { // Only check for tool calling
+          
+          // Ensure worker is alive before any detection that may use LLM
+          const worker = getWorker();
+          if (!worker || !worker.isRunning()) {
+            getLogger().warn('[AgentWard] Worker is not running, restarting...');
+            restartWorker({
+              tmpDir: resolvePreferredOpenClawTmpDir(),
+              config: {
+                timeout: config.worker.timeout ?? 60000,
+                debug: config.worker.debug ?? false,
+                logLevel: config.worker.logLevel ?? 'info',
+              },
+            });
+          }
+
           const warning = decisionAlignmentDetect(
             state,
             event.message
