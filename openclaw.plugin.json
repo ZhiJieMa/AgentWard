@@ -160,10 +160,9 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "level": {
-            "type": "string",
-            "enum": ["off", "basic", "event", "ctx", "full"],
-            "description": "Log verbosity level"
+          "enableFileLog": {
+            "type": "boolean",
+            "description": "When enabled, logs are written to a file"
           }
         }
       },
@@ -259,10 +258,6 @@
     "layers.execControl.enableIntervention": {
       "label": "Enable Exec Control Intervention",
       "help": "When true, blocks dangerous tool calls. When false, only logs and sends warnings without blocking."
-    },
-    "logging.level": {
-      "label": "Logging Level",
-      "help": "Control log verbosity: off, basic, event, ctx, or full"
     },
     "worker.timeout": {
       "label": "Worker Timeout (ms)",

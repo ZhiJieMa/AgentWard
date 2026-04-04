@@ -43,7 +43,6 @@ export class PluginConfig {
     };
   };
   logging: {
-    level: "off" | "basic" | "event" | "ctx" | "full";
     enableFileLog: boolean;
   };
   worker: {
@@ -98,7 +97,6 @@ export class PluginConfig {
       },
     };
     this.logging = {
-      level: "basic",
       enableFileLog: true,
     };
     this.worker = {
@@ -207,10 +205,6 @@ export class PluginConfig {
 
     const logging = (raw as Record<string, unknown>).logging;
     if (logging && typeof logging === "object") {
-      const level = (logging as Record<string, unknown>).level as string | undefined;
-      if (level && ["off", "basic", "event", "ctx", "full"].includes(level)) {
-        config.logging.level = level as "off" | "basic" | "event" | "ctx" | "full";
-      }
       const enableFileLog = (logging as Record<string, unknown>).enableFileLog;
       if (typeof enableFileLog === "boolean") {
         config.logging.enableFileLog = enableFileLog;
@@ -341,10 +335,6 @@ export const ConfigSchema = {
     "layers.execControl.enableIntervention": {
       label: "Enable Exec Control Intervention",
       help: "When true, blocks dangerous tool calls. When false, only logs and sends warnings without blocking.",
-    },
-    "logging.level": {
-      label: "Logging Level",
-      help: "Control log verbosity: off (no logs), basic (Log ... only), event (show event data), ctx (show context), full (show both event and ctx)",
     },
     "logging.enableFileLog": {
       label: "Enable File Logging",
