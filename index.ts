@@ -18,6 +18,7 @@ import { toolCallDetect } from "./layers/exec-control.ts";
 import { initLogger, getLogger, initFileLog } from "./logger.ts";
 import { PersistentWorker, getWorker, setWorker, restartWorker} from "./model-worker-manager.ts";
 import { Warning } from "./warnings.ts";
+import { handleAgentWardCommand } from "./commands.ts";
 
 /** Inline implementation of extractToolResultId — reads toolCallId or toolUseId
  *  from a message object. Mirrors src/agents/tool-call-id.ts:71-83. */
@@ -25,8 +26,8 @@ function extractToolResultId(message: Record<string, unknown>): string | undefin
   return (message.toolCallId ?? message.toolUseId) as string | undefined;
 }
 
-function send_message(state: SessionState, content: string, config: PluginConfig) {
-  if (!config.notifications.enableProactiveNotifications) return;
+function send_message(state: SessionState, content: string) {
+  if (!plugin.config!.notifications.enableProactiveNotifications) return;
   if (state.channelId && state.targetId)
     spawnSync('openclaw', [
       'message', 'send',
@@ -43,23 +44,31 @@ const plugin = {
   name: "AgentWard",
   description: "AgentWard provides multi-layer security protection for the agent system, including input sanitization, execution control, decision alignment monitoring, and foundation scan.",
   configSchema: ConfigSchema,
+  config: null as PluginConfig | null,
+  startupConfig: null as PluginConfig | null,
   status: new Map<string, SessionState>(),
   register(api: OpenClawPluginApi) {
     initLogger(api);
-    const config = PluginConfig.fromPluginConfig(api.pluginConfig);
-    if (config.logging.enableFileLog) {
+    if (!plugin.config) {
+      // First-time initialization only — register() may be called again
+      // if the plugin registry is reloaded (e.g., cache eviction).
+      const config = PluginConfig.fromPluginConfig(api.pluginConfig);
+      plugin.config = config;
+      plugin.startupConfig = structuredClone(config);
+    }
+    if (plugin.config!.logging.enableFileLog) {
       initFileLog();
     }
-    
+
     api.registerService({
       id: "agent-ward-worker",
       start: async (ctx) => {
         const worker = new PersistentWorker({
           tmpDir: resolvePreferredOpenClawTmpDir(),
           config: {
-            timeout: config.worker.timeout ?? 60000,
-            debug: config.worker.debug ?? false,
-            logLevel: config.worker.logLevel ?? 'info',
+            timeout: plugin.config!.worker.timeout ?? 60000,
+            debug: plugin.config!.worker.debug ?? false,
+            logLevel: plugin.config!.worker.logLevel ?? 'info',
           },
         });
         
@@ -71,6 +80,17 @@ const plugin = {
           worker.shutdown();
           setWorker(null);
         }
+      },
+    });
+
+    api.registerCommand({
+      name: "agentward",
+      description: "View and modify AgentWard security configuration",
+      acceptsArgs: true,
+      requireAuth: true,
+      handler: (ctx) => {
+        const cfg = plugin.config!;
+        return handleAgentWardCommand(ctx, cfg, plugin.startupConfig!, (newCfg) => { plugin.config = newCfg; });
       },
     });
 
@@ -88,28 +108,28 @@ const plugin = {
         state.decisionAlignmentInfo = [];
       }
 
-      if (config.layers.foundationScan.enableFoundationScanDetection && ctx.workspaceDir) {
+      if (plugin.config!.layers.foundationScan.enableFoundationScanDetection && ctx.workspaceDir) {
         const warning = await detectFoundationScan(
           ctx.workspaceDir,
           getLogger(),
           state,
           api.config,
-          config.layers.foundationScan as FoundationScanConfig
+          plugin.config!.layers.foundationScan as FoundationScanConfig
         );
         if (warning) {
-          send_message(state, formatMessageSendingWarning(warning), config);
+          send_message(state, formatMessageSendingWarning(warning));
           getLogger().warn(`[FoundationScan] Malicious skill detected in ${ctx.workspaceDir}:` + JSON.stringify(warning));
 
-          if (config.layers.foundationScan.enableIntervention) {
-            if (config.layers.foundationScan.blockToolCallOnFoundationScanWarning){
+          if (plugin.config!.layers.foundationScan.enableIntervention) {
+            if (plugin.config!.layers.foundationScan.blockToolCallOnFoundationScanWarning){
               state.warning_queue.push(warning);
               // In this case, the reason of tool call blocking is here. Show the assistant later by warning_queue.
             }
-            if (config.layers.foundationScan.blockToolCallOnFoundationScanWarning) {
+            if (plugin.config!.layers.foundationScan.blockToolCallOnFoundationScanWarning) {
               getLogger().warn("[Enforcement] Blocking tool calls due to system prompt security bypass detection.");
               state.block_tool_call = true;
             }
-            return { prependContext: formatUserPrependWarning(warning, config.layers.foundationScan.blockToolCallOnFoundationScanWarning) }; 
+            return { prependContext: formatUserPrependWarning(warning, plugin.config!.layers.foundationScan.blockToolCallOnFoundationScanWarning) }; 
           }
         }
       }
@@ -140,7 +160,9 @@ const plugin = {
 
       if (event.message.role == "assistant") {
         state.temp_block_tool_call = false;
-        if (config.layers.decisionAlignment.enableDecisionAlignmentDetection && event.message.stopReason == "toolUse") { // Only check for tool calling
+        const daEnabled = plugin.config!.layers.decisionAlignment.enableDecisionAlignmentDetection;
+        getLogger().info(`[DecisionAlignment] before_message_write: enabled=${daEnabled}, stopReason=${event.message.stopReason}`);
+        if (daEnabled && event.message.stopReason == "toolUse") { // Only check for tool calling
 
           // Ensure worker is alive before any detection that may use LLM
           const worker = getWorker();
@@ -149,9 +171,9 @@ const plugin = {
             restartWorker({
               tmpDir: resolvePreferredOpenClawTmpDir(),
               config: {
-                timeout: config.worker.timeout ?? 60000,
-                debug: config.worker.debug ?? false,
-                logLevel: config.worker.logLevel ?? 'info',
+                timeout: plugin.config!.worker.timeout ?? 60000,
+                debug: plugin.config!.worker.debug ?? false,
+                logLevel: plugin.config!.worker.logLevel ?? 'info',
               },
             });
           }
@@ -161,9 +183,9 @@ const plugin = {
             event.message
           );
           if (warning) {
-            send_message(state, formatMessageSendingWarning(warning), config);
+            send_message(state, formatMessageSendingWarning(warning));
             getLogger().warn(`[DecisionAlignment] Decision alignment warning: ${warning.type}`);
-            if (config.layers.decisionAlignment.enableIntervention) {
+            if (plugin.config!.layers.decisionAlignment.enableIntervention) {
               state.warning_queue.push(warning);
               state.temp_block_tool_call = true;
             }
@@ -173,7 +195,7 @@ const plugin = {
 
       state.currentMessages!.push(event.message);
 
-      if (event.message.role == "toolResult" && config.layers.inputSanitization.enableInputDetection) {
+      if (event.message.role == "toolResult" && plugin.config!.layers.inputSanitization.enableInputDetection) {
         const tcId = extractToolResultId(event.message as Record<string, unknown>);
         if (tcId && state.blockedToolCalls.has(tcId)) {
           getLogger().info(`[InputSanitization] Skipping input sanitization for blocked tool call ${tcId}.`);
@@ -181,32 +203,32 @@ const plugin = {
           const warning = inputDetect(event.message.content);
           if (warning) {
             const shouldCoverResponse =
-              config.layers.inputSanitization.enableIntervention
-              && !config.layers.inputSanitization.temporaryBlockToolCall
-              && config.layers.inputSanitization.blockHarmfulInput
-              && config.layers.inputSanitization.coverContaminatedResponse;
+              plugin.config!.layers.inputSanitization.enableIntervention
+              && !plugin.config!.layers.inputSanitization.temporaryBlockToolCall
+              && plugin.config!.layers.inputSanitization.blockHarmfulInput
+              && plugin.config!.layers.inputSanitization.coverContaminatedResponse;
 
             if (shouldCoverResponse)
-              send_message(state, formatMessageSendingWarning(warning, "The later contaminated response will not be persisted."), config);
+              send_message(state, formatMessageSendingWarning(warning, "The later contaminated response will not be persisted."));
             else
-              send_message(state, formatMessageSendingWarning(warning), config);
+              send_message(state, formatMessageSendingWarning(warning));
 
             getLogger().warn(`[InputSanitization] Detecting ${warning.type}.`);
 
-            if (config.layers.inputSanitization.enableIntervention) {
+            if (plugin.config!.layers.inputSanitization.enableIntervention) {
               state.warning_queue.push(warning);
 
-              if (config.layers.inputSanitization.temporaryBlockToolCall) {
+              if (plugin.config!.layers.inputSanitization.temporaryBlockToolCall) {
                 state.temp_block_tool_call = true;
                 getLogger().warn(`[InputSanitization] ${warning.type}. Temporary blocking tool calls until next assistant response...`);
               } else {
                 state.block_tool_call = true;
                 getLogger().warn(`[InputSanitization] ${warning.type}. Permanently blocking tool calls until next user input...`);
 
-                const warningText = formatToolResultWarning(warning, config.layers.inputSanitization.blockHarmfulInput);
-                if (config.layers.inputSanitization.blockHarmfulInput) {
+                const warningText = formatToolResultWarning(warning, plugin.config!.layers.inputSanitization.blockHarmfulInput);
+                if (plugin.config!.layers.inputSanitization.blockHarmfulInput) {
                   const content = [{ type: "text", text: warningText }];
-                  if (config.layers.inputSanitization.coverContaminatedResponse) {
+                  if (plugin.config!.layers.inputSanitization.coverContaminatedResponse) {
                     state.cover_response_by_warning = true;
                   }
                   return {
@@ -238,23 +260,23 @@ const plugin = {
 
       let instant_warning: Warning | null = null;
 
-      if (config.layers.execControl.enableToolCallDetection) {
+      if (plugin.config!.layers.execControl.enableToolCallDetection) {
         const warning = toolCallDetect(event.toolName, event.params);
         if (warning) {
-          send_message(state, formatMessageSendingWarning(warning), config);
+          send_message(state, formatMessageSendingWarning(warning));
           getLogger().warn(`[ExecControl] Dangerous command detected: ${event.params.command}`);
-          if (config.layers.execControl.enableIntervention) {
+          if (plugin.config!.layers.execControl.enableIntervention) {
             instant_warning = warning;
           }
         }
       }
 
-      if (config.layers.cognitionProtection.enableMemWriteDetection && !instant_warning) {
+      if (plugin.config!.layers.cognitionProtection.enableMemWriteDetection && !instant_warning) {
         const warning = detectCognitionProtectionAnomaly(event.toolName, event.params);
         if (warning) {
-          send_message(state, formatMessageSendingWarning(warning), config);
+          send_message(state, formatMessageSendingWarning(warning));
           getLogger().warn(`[CognitionProtection] Cognition state anomaly detected: ${event.toolName}`);
-          if (config.layers.cognitionProtection.enableIntervention) {
+          if (plugin.config!.layers.cognitionProtection.enableIntervention) {
             instant_warning = warning;
           }
         }
