@@ -85,6 +85,7 @@ export class SessionState {
       provider,
       api: apiType as Api,
       baseUrl,
+      headers: (llm.headers as Record<string, string> | undefined),
       input: ["text"],
     } as Model<Api>;
 
@@ -161,6 +162,7 @@ export class SessionState {
       model = {
         ...model,
         input: ["text"],
+        headers: (providerConfig as Record<string, unknown> | undefined)?.headers as Record<string, string> | undefined,
       }
       
       this.llmContext = {
