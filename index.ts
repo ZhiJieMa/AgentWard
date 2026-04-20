@@ -198,7 +198,7 @@ const plugin = {
       if (event.message.role == "toolResult" && plugin.config!.layers.inputSanitization.enableInputDetection) {
         const tcId = extractToolResultId(event.message as Record<string, unknown>);
         if (tcId && state.blockedToolCalls.has(tcId)) {
-          getLogger().info(`[InputSanitization] Skipping input sanitization for blocked tool call ${tcId}.`);
+          getLogger().info(`[InputSanitization] Skipping input sanitization for failed tool call ${tcId}.`);
         } else {
           const warning = inputDetect(event.message.content);
           if (warning) {
