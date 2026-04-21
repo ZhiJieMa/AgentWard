@@ -27,8 +27,7 @@
       ↓
   注入到发给 LLM 的 Prompt 里
 
-  结论：prependContext 不会显示在 UI，也不打印到 gateway，它是悄悄注入到 LLM 上下文里的，只有 LLM 能看到。AgentWard
-  用它来告知助手"工具调用权限已被撤销"。
+  结论：prependContext 不会显示在 UI，也不打印到 gateway，它是悄悄注入到 LLM 上下文里的，只有 LLM 能看到。AgentWard用它来告知助手"工具调用权限已被撤销"。
 
   ---
   before_tool_call — blockReason 的去向
