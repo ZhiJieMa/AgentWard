@@ -1,0 +1,435 @@
+ ╔══════════════════════════════════════════════════════════════════════════════════╗
+  ║                     OpenClaw Plugin Hook 生命周期图                              ║
+  ╠══════════════════════════════════════════════════════════════════════════════════╣                                                                                                                                                                                                                                         ║  执行模式图例:                                                                    ║
+  ║  [void]     fire-and-forget，并行执行，无返回值                                   ║                                                                                                                                                                                                                                        ║  [modify]   顺序执行，结果合并，高优先级先执行                                     ║
+  ║  [claim]    顺序执行，首个 { handled:true } 短路后续                              ║
+  ║  [sync]     同步执行（热路径，不可异步）                                           ║
+  ╚══════════════════════════════════════════════════════════════════════════════════╝
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   一、Gateway 生命周期
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    服务进程启动
+         │
+         ▼
+    ┌─────────────────────────────────────┐
+    │  gateway_start  [void]              │  ← 服务绑定端口后触发
+    │  event: { port }                    │
+    └─────────────────────────────────────┘
+         │
+         │  ... 运行中 ...
+         │
+         ▼
+    ┌─────────────────────────────────────┐
+    │  gateway_stop   [void]              │  ← 进程退出/关闭时触发
+    │  event: { reason? }                 │
+    └─────────────────────────────────────┘
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   二、插件/技能安装
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    install / update 命令触发
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_install  [modify]                                   │
+    │  event: { targetType, targetName, sourcePath,               │
+    │           builtinScan, request, skill?, plugin? }           │
+    │  result: { findings?, block?, blockReason? }                │
+    │                                                             │
+    │  ⚠ block=true 时立即停止安装（sticky true）                  │
+    │  ⚠ findings 跨插件合并（追加）                               │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── block=true → 安装被拒绝
+         └── block=false → 继续安装流程
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   三、Session 生命周期
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    新会话创建 / 从旧会话恢复
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  session_start  [void]                                      │
+    │  event: { sessionId, sessionKey?, resumedFrom? }            │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         │  ... 会话运行中（消息往来、工具调用等）...
+         │
+         ├──────────────────────────────────────────────────────────
+         │  /new 或 /reset 命令
+         │       │
+         │       ▼
+         │  ┌─────────────────────────────────────────────────────┐
+         │  │  before_reset  [void]                               │
+         │  │  event: { sessionFile?, messages?, reason? }        │
+         │  │  ← 消息清除前最后一次观察机会                         │
+         │  └─────────────────────────────────────────────────────┘
+         │       │
+         │       ▼ 消息被清除，新 session 开始
+         │
+         ├──────────────────────────────────────────────────────────
+         │  上下文压缩（context compaction）
+         │       │
+         │       ▼
+         │  ┌─────────────────────────────────────────────────────┐
+         │  │  before_compaction  [void]                          │
+         │  │  event: { messageCount, tokenCount?,                │
+         │  │           compactingCount?, messages?,              │
+         │  │           sessionFile? }                            │
+         │  └─────────────────────────────────────────────────────┘
+         │       │
+         │       │  ... 压缩执行中 ...
+         │       │
+         │       ▼
+         │  ┌─────────────────────────────────────────────────────┐
+         │  │  after_compaction  [void]                           │
+         │  │  event: { messageCount, tokenCount?,                │
+         │  │           compactedCount, sessionFile? }            │
+         │  └─────────────────────────────────────────────────────┘
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  session_end  [void]                                        │
+    │  event: { sessionId, sessionKey?, messageCount,             │
+    │           durationMs?, reason?, sessionFile?,               │
+    │           transcriptArchived?,                              │
+    │           nextSessionId?, nextSessionKey? }                 │
+    │  reason: new|reset|idle|daily|compaction|deleted|unknown    │
+    └─────────────────────────────────────────────────────────────┘
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   四、消息入站 → Agent 调度 完整流程
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    外部消息到达（WhatsApp / API / 其他渠道）
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  inbound_claim  [claim]                                     │
+    │  event: { body, channel?, senderId?, ... }                  │
+    │  result: { handled, reply? }                                │
+    │                                                             │
+    │  ← 插件可在命令解析前完全接管此消息                           │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── handled=true → 插件已处理，跳过后续所有流程
+         │
+         ▼ handled=false，继续
+    ┌─────────────────────────────────────────────────────────────┐
+    │  message_received  [void]                                   │
+    │  event: { body, channel?, senderId?,                        │
+    │           isGroup?, timestamp? }                            │
+    │                                                             │
+    │  ← 纯观察，不影响流程                                        │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_dispatch  [claim]                                   │
+    │  event: { content, body?, channel?,                         │
+    │           sessionKey?, senderId?, isGroup? }                │
+    │  result: { handled, text? }                                 │
+    │                                                             │
+    │  ← 插件可在模型调度前处理消息（如命令路由）                    │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── handled=true → 插件已处理，跳过 Agent 调用
+         │
+         ▼ handled=false，进入 Agent 流程
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_agent_reply  [claim]                                │
+    │  event: { cleanedBody }                                     │
+    │  result: { handled, reply?, reason? }                       │
+    │                                                             │
+    │  ← 插件可返回合成回复，完全短路 LLM 调用                      │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── handled=true → 使用合成回复，跳过 LLM
+         │
+         ▼ handled=false，进入模型准备阶段
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   五、Agent / LLM 执行流程
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_model_resolve  [modify]                             │
+    │  event: { requestedModel?, requestedProvider?,              │
+    │           agentId?, ... }                                   │
+    │  result: { modelOverride?, providerOverride? }              │
+    │                                                             │
+    │  ← 高优先级插件的 override 优先（firstDefined）              │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_prompt_build  [modify]                              │
+    │  event: { agentId?, sessionKey?, model?, ... }              │
+    │  result: { systemPrompt?,    ← firstDefined（高优先级赢）    │
+    │            prependContext?,  ← 所有插件内容拼接              │
+    │            prependSystemContext?,                           │
+    │            appendSystemContext? }                           │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         │  ⚠ before_agent_start [modify] 是上面两个的 legacy 合并钩子
+         │    同时具备 model_resolve + prompt_build 能力
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  model_call_started  [void]                                 │
+    │  event: { runId, callId, provider, model,                   │
+    │           api?, transport? }                                │
+    │  ← LLM HTTP 请求发出前                                       │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  llm_input  [void]                                          │
+    │  event: { runId, sessionId, provider, model,                │
+    │           systemPrompt?, prompt,                            │
+    │           historyMessages[], imagesCount }                  │
+    │  ← 观察发送给 LLM 的完整 payload                             │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         │  ... LLM 推理中 ...
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  llm_output  [void]                                         │
+    │  event: { runId, sessionId, provider, model,                │
+    │           resolvedRef?, harnessId?,                         │
+    │           assistantTexts[], lastAssistant?,                 │
+    │           usage? }                                          │
+    │  ← 观察 LLM 返回的完整输出及 token 用量                       │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  model_call_ended  [void]                                   │
+    │  event: { runId, callId, provider, model,                   │
+    │           durationMs, outcome,                              │
+    │           errorCategory?, failureKind?,                     │
+    │           requestPayloadBytes?,                             │
+    │           responseStreamBytes?,                             │
+    │           timeToFirstByteMs? }                              │
+    │  ← LLM 调用结束（含错误情况）                                 │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         │  如果 LLM 返回工具调用 → 进入工具执行流程（见第六节）
+         │  工具执行完毕后回到此处继续下一轮 LLM 调用
+         │
+         ▼  LLM 准备给出最终回复
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_agent_finalize  [modify]                            │
+    │  event: { runId?, sessionId, sessionKey?,                   │
+    │           turnId?, provider?, model?,                       │
+    │           lastAssistantMessage?, messages?,                 │
+    │           stopHookActive }                                  │
+    │  result: { action, reason? }                                │
+    │    action = "continue"  → 接受当前回复                       │
+    │    action = "revise"    → 要求 LLM 再来一轮（可循环）         │
+    │    action = "finalize"  → 强制结束（覆盖 revise）             │
+    │                                                             │
+    │  ⚠ finalize 优先级最高，revise 可多插件叠加 reason            │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── action=revise → 回到 model_call_started 再次调用 LLM
+         │
+         ▼ action=continue / finalize
+    ┌─────────────────────────────────────────────────────────────┐
+    │  agent_end  [void]                                          │
+    │  event: { runId?, messages[], success,                      │
+    │           error?, durationMs? }                             │
+    │  ← 整个 Agent 运行结束，可做日志/分析                         │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼ 进入回复发送流程（见第七节）
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   六、工具调用流程（嵌套在 Agent 流程中）
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    LLM 返回 tool_use 块
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_tool_call  [modify]                                 │
+    │  event: { toolName, params, runId?, toolCallId? }           │
+    │  result: { params?,         ← 可修改入参                     │
+    │            block?,          ← sticky true，一旦 block 停止   │
+    │            blockReason?,                                    │
+    │            requireApproval? ← 弹出审批（含 timeout 策略）    │
+    │          }                                                  │
+    │                                                             │
+    │  ⚠ 已有 requireApproval 时，后续插件不能修改 params           │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── block=true → 工具调用被拒绝，返回错误结果给 LLM
+         ├── requireApproval → 等待用户审批后继续
+         │
+         ▼ 工具实际执行
+    ┌─────────────────────────────────────────────────────────────┐
+    │  after_tool_call  [void]                                    │
+    │  event: { toolName, params, runId?, toolCallId?,            │
+    │           result?, error?, durationMs? }                    │
+    │  ← 观察工具执行结果（含错误）                                  │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼ 将结果写入 session
+    ┌─────────────────────────────────────────────────────────────┐
+    │  tool_result_persist  [sync]                                │
+    │  event: { toolName?, toolCallId?,                           │
+    │           message, isSynthetic? }                           │
+    │  result: { message? }  ← 可替换写入 session 的消息内容        │
+    │                                                             │
+    │  ⚠ 同步执行，不可返回 Promise                                 │
+    │  ⚠ 顺序执行，每个插件看到上一个插件修改后的 message            │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼ 消息写入 session JSONL
+    ┌─────────────────────────────────────────────────────────────┐
+    │  before_message_write  [sync]                               │
+    │  event: { message, sessionKey?, agentId? }                  │
+    │  result: { block?, message? }                               │
+    │                                                             │
+    │  ⚠ 同步执行，不可返回 Promise                                 │
+    │  ⚠ block=true 立即返回，消息不写入 JSONL                      │
+    │  ⚠ 适用于所有消息类型（不只是工具结果）                        │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         └── 返回 LLM 继续下一轮推理
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   七、回复发送流程
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    Agent 产出最终回复
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  reply_dispatch  [claim]                                    │
+    │  event: { ctx, runId?, sessionKey?,                         │
+    │           images?, inboundAudio,                            │
+    │           sessionTtsAuto?, ttsChannel?,                     │
+    │           suppressUserDelivery?,                            │
+    │           shouldRouteToOriginating,                         │
+    │           shouldSendToolSummaries,                          │
+    │           sendPolicy, isTailDispatch? }                     │
+    │  result: { handled, queuedFinal, counts }                   │
+    │                                                             │
+    │  ← 插件可完全接管回复分发逻辑（TTS、多渠道路由等）              │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── handled=true → 插件已分发，跳过默认路径
+         │
+         ▼ handled=false，走默认分发
+    ┌─────────────────────────────────────────────────────────────┐
+    │  message_sending  [modify]                                  │
+    │  event: { content, channel?, to?,                           │
+    │           sessionKey?, ... }                                │
+    │  result: { content?,  ← lastDefined（最后插件的内容生效）     │
+    │            cancel?    ← sticky true，一旦 cancel 停止        │
+    │          }                                                  │
+    │                                                             │
+    │  ← 可修改消息内容或取消发送                                    │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── cancel=true → 消息不发送
+         │
+         ▼ 消息实际发出
+    ┌─────────────────────────────────────────────────────────────┐
+    │  message_sent  [void]                                       │
+    │  event: { content, channel?, to?,                           │
+    │           sessionKey?, ... }                                │
+    │  ← 消息已发出，纯观察                                         │
+    └─────────────────────────────────────────────────────────────┘
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   八、子 Agent 生命周期
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    主 Agent 请求派生子 Agent
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  subagent_spawning  [modify]                                │
+    │  event: { childSessionKey, agentId, label?,                 │
+    │           mode, requester?, threadRequested }               │
+    │  result: { status: "ok"|"error",                            │
+    │            threadBindingReady?,                             │
+    │            deliveryOrigin? }                                │
+    │                                                             │
+    │  ← 渠道插件在此绑定 session 与线程                            │
+    │  ⚠ error 状态 sticky，一旦出错停止后续插件                    │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ├── status=error → 子 Agent 创建失败
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  subagent_delivery_target  [modify]                         │
+    │  event: { childSessionKey, requesterSessionKey,             │
+    │           requesterOrigin?, childRunId?,                    │
+    │           spawnMode?, expectsCompletionMessage }            │
+    │  result: { origin? }  ← firstDefined（高优先级路由赢）        │
+    │                                                             │
+    │  ← 解析子 Agent 回复应路由到哪个渠道/账号/线程                 │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         ▼ 子 Agent 实际启动
+    ┌─────────────────────────────────────────────────────────────┐
+    │  subagent_spawned  [void]                                   │
+    │  event: { childSessionKey, agentId, label?,                 │
+    │           mode, requester?,                                 │
+    │           threadRequested, runId }                          │
+    │  ← 子 Agent 已启动，纯观察                                    │
+    └─────────────────────────────────────────────────────────────┘
+         │
+         │  ... 子 Agent 运行中（拥有自己完整的 Agent 流程）...
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  subagent_ended  [void]                                     │
+    │  event: { targetSessionKey, targetKind,                     │
+    │           reason, sendFarewell?,                            │
+    │           accountId?, runId?, endedAt?,                     │
+    │           outcome?, error? }                                │
+    │  outcome: ok|error|timeout|killed|reset|deleted             │
+    │  ← 子 Agent 结束，可做清理/通知                               │
+    └─────────────────────────────────────────────────────────────┘
+
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   九、完整消息处理时序（一次对话 turn 的全貌）
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    消息到达
+       │
+       ├─[claim]──► inbound_claim          ──► handled? → 结束
+       ├─[void]───► message_received
+       ├─[claim]──► before_dispatch        ──► handled? → 结束
+       ├─[claim]──► before_agent_reply     ──► handled? → 跳过LLM
+       │
+       │  ┌── Agent 准备 ──────────────────────────────────────┐
+       │  │  [modify] before_model_resolve                     │
+       │  │  [modify] before_prompt_build                      │
+       │  │  ([modify] before_agent_start  ← legacy 合并钩子)  │
+       │  └────────────────────────────────────────────────────┘
+       │
+       │  ┌── LLM 调用循环（可能多轮）────────────────────────────┐
+       │  │  [void]   model_call_started                        │
+       │  │  [void]   llm_input                                 │
+       │  │  ···LLM 推理···
