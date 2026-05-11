@@ -1,0 +1,103 @@
+##问题根因
+                                                                                                                                                                                                                                                                                                                               
+before_agent_reply 返回 { handled: true } 后，原始用户消息被永久丢弃，系统不会重新处理它。
+                                                                                                                                                                                                                                                                                                                              
+解决方案             ↑             s) )
+
+  有两种可行方案，根据你的场景选择：
+
+  ---
+  方案一：不拦截，改用 before_agent_start 注入警告（推荐）
+
+  不在 before_agent_reply 里拦截，而是让消息正常进入 Agent，但通过 before_prompt_build 把安全警告注入到 system prompt 里，让 Agent 自己决定如何回应用户。
+
+  //插件注册
+  plugin.on("before_prompt_build", async (event, ctx) => {
+    const scanResult = await scanForRisks(event.body);
+    if (scanResult.hasRisk) {
+      return {
+        prependContext: `[SECURITY ALERT] ${scanResult.warning}\n请先告知用户此风险，等待用户确认后再继续。`,
+      };
+    }
+  });
+
+  优点：原始消息完整保留，Agent 自己处理交互逻辑。
+  缺点：Agent 可能不严格遵守注入的指令。
+
+  ---
+  方案二：拦截 + enqueueSystemEvent 重注入（适合需要强控制的场景）
+
+  在 before_agent_reply 里拦截，发出警告，同时把原始消息存入 system event队列。用户下一条消息到来时，原始消息会以 System: 行的形式出现在 prompt 里。
+
+  //插件内部状态（模块级，跨 hook 调用持久）
+  const pendingMessages = new Map<string, string>(); // sessionKey → originalBody
+
+  plugin.on("before_agent_reply", async (event, ctx) => {
+    const scanResult = await scanForRisks(event.cleanedBody);
+    if (!scanResult.hasRisk) returnundefined; // 不拦截
+
+    const sessionKey = ctx.sessionKey;
+    if (!sessionKey) return undefined;
+
+    // 1. 把原始消息存入 system event队列，下一轮会以 System: 行注入
+    api.runtime.system.enqueueSystemEvent(
+      `[Pending user request, awaiting confirmation]: ${event.cleanedBody}`,
+      { sessionKey, trusted: false }
+    );
+
+    // 2. 拦截本轮，向用户发出警告
+    return {
+      handled: true,  reply: {
+     text: `⚠安全检测发现风险：${scanResult.warning}\n\n请确认是否继续执行原始请求？回复"确认"继续，或"取消"放弃。`,
+      },
+    };
+  });
+
+  下一轮用户回复"确认"时，Agent收到的 prompt 会包含：
+
+  System (untrusted): [2026-05-11 10:30:00] [Pending user request, awaiting confirmation]: <原始消息内容>
+  User: 确认
+
+  Agent 就能看到原始请求并继续处理。
+
+  ---
+  方案三：拦截 + 立即 heartbeat 重触发（适合无需用户二次确认的场景）
+
+  如果只是展示警告但仍要继续执行（比如只是提醒，不阻断），可以在发出警告的同时立即触发一次 heartbeat，把原始消息作为 system event 注入：
+
+  plugin.on("before_agent_reply", async (event, ctx) => {
+    const scanResult = await scanForRisks(event.cleanedBody);
+    if (!scanResult.hasRisk) return undefined;
+
+    const sessionKey = ctx.sessionKey;
+    if (!sessionKey) return undefined;
+
+    // 1. 注入原始消息到下一轮
+    api.runtime.system.enqueueSystemEvent(
+      `[Auto-resumed after security notice]: ${event.cleanedBody}`,
+      { sessionKey, trusted: true }
+    );
+
+    // 2. 发出警告
+    const warningReply = { text: `⚠️注意：${scanResult.warning}，已自动继续处理。` };
+
+    // 3. 立即触发 heartbeat，让 Agent 在警告发出后马上处理原始消息
+    api.runtime.system.requestHeartbeatNow({ sessionKey, reason: "security-resume" });
+
+    return { handled: true, reply: warningReply };
+  });
+
+  ---
+  三种方案对比
+
+  ┌──────────────────────────────┬────────────────────────┬─────────────────────────┬──────────────────┐
+  │             方案             │        用户体验        │        原始消息         │     适用场景     │
+  ├──────────────────────────────┼────────────────────────┼─────────────────────────┼──────────────────┤
+  │ before_prompt_build 注入警告 │ 无感知，Agent 自行处理 │ 完整保留                │ 软性提醒，不阻断 │
+  ├──────────────────────────────┼────────────────────────┼─────────────────────────┼──────────────────┤
+  │ 拦截 + enqueueSystemEvent    │ 用户需手动确认         │ 下一轮以 System: 行恢复 │ 需要用户二次确认 │
+  ├──────────────────────────────┼────────────────────────┼─────────────────────────┼──────────────────┤
+  │ 拦截 + heartbeat 重触发      │ 自动继续，用户看到警告 │ heartbeat 轮次恢复      │ 强制提醒但不阻断 │
+  └──────────────────────────────┴────────────────────────┴─────────────────────────┴──────────────────┘
+
+  推荐方案二，它最符合"与用户交互 +不丢失原始消息"的需求，且实现最简单可靠。关键点是 enqueueSystemEvent 的内容会在下一个正常 agent turn 里通过 drainFormattedSystemEvents 注入到 prompt，Agent 能看到完整上下文。
