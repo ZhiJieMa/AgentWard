@@ -138,83 +138,147 @@ before_agent_reply 返回 { handled: true } 后，原始用户消息被永久丢
 
 
 
-方案一：before_agent_reply 拦截 + enqueueSystemEvent重注入（最可靠）
+完整正确的插件代码
 
-  这是唯一能强制打断当前 turn、让用户看到警告、且不丢失原始消息的方案。
+  import { definePluginEntry } from "@openclaw/plugin-sdk";
+  import type { OpenClawPluginApi } from "@openclaw/plugin-sdk";
 
-  // 插件模块级状态
-  const pendingConfirmations = new Map<string, {
+  type PendingConfirmation = {
     originalBody: string;
     warning: string;
     expiresAt: number;
-  }>();
+  };
 
-  plugin.on("before_agent_reply", async (event, ctx) => {
-    const sessionKey = ctx.sessionKey;
-    if (!sessionKey) return undefined;
+  export default definePluginEntry({
+    id: "skill-security-check",
+    name: "Skill Security Check",
 
-    // 检查是否是对上一次警告的确认回复
-    const pending = pendingConfirmations.get(sessionKey);
-    if (pending) {
-      const body = event.cleanedBody.trim().toLowerCase();
-      const isExpired = Date.now() > pending.expiresAt;
+    register(api: OpenClawPluginApi) {
+   // 模块级状态，跨 hook调用持久
+      const pendingConfirmations = new Map<string, PendingConfirmation>();
 
-      if (isExpired) {
-        pendingConfirmations.delete(sessionKey);
-        return {
-          handled: true,
-       reply: { text: "安全确认已超时，请重新发送您的请求。" },
-        };
-      }
+      api.on("before_agent_reply", async (event, ctx) => {
+        const sessionKey = ctx.sessionKey;
+        if (!sessionKey) return undefined;
 
-      if (body === "确认" || body === "yes" || body === "继续") {
-        // 用户确认了，把原始消息重注入为 system event
-        const originalBody = pending.originalBody;
-        pendingConfirmations.delete(sessionKey);
+        const body = event.cleanedBody.trim();
+        const bodyLower = body.toLowerCase();
+   // ── 检查是否有待确认的请求 ──────────────────────────────
+        const pending = pendingConfirmations.get(sessionKey);
+        if (pending) {
+      // 超时处理
+          if (Date.now() > pending.expiresAt) {
+            pendingConfirmations.delete(sessionKey);
+            return {
+              handled: true,
+           reply: { text: "安全确认已超时，请重新发送您的请求。" },
+            };
+          }
 
-        api.runtime.system.enqueueSystemEvent(    `[User confirmed security warning. Resume original request]: ${originalBody}`,
-          { sessionKey, trusted: true }
-        );
-        // 触发 heartbeat 立即处理
-        api.runtime.system.requestHeartbeatNow({ sessionKey, reason: "security-confirmed" });
+          // 用户确认
+          if (bodyLower === "确认" || bodyLower === "yes" || bodyLower === "继续") {
+            const originalBody = pending.originalBody;
+            pendingConfirmations.delete(sessionKey);
 
-        return {
-          handled: true,
-          reply: { text: "已确认，正在处理您的原始请求..." },
-        };
-      }
+     // 把原始消息注入到下一轮 prompt 的 System: 行
+            api.runtime.system.enqueueSystemEvent(
+         `[User confirmed security warning. Resume original request]: ${originalBody}`,
+     { sessionKey, trusted: true },
+            );
 
-      if (body === "取消" || body === "no" || body === "cancel") {
-        pendingConfirmations.delete(sessionKey);
-        return {
-          handled: true,
-          reply: { text: "已取消操作。" },
-        };
-      }
+      // 立即触发 heartbeat，让 Agent 马上处理原始消息
+            api.runtime.system.requestHeartbeatNow({
+              sessionKey,
+              reason:"security-confirmed",
+            });
 
-      // 用户回复了其他内容，再次提示
+            return {
+              handled: true,
+              reply: { text: "已确认，正在处理您的原始请求..." },
+            };
+          }
+
+          // 用户取消
+          if (bodyLower === "取消" || bodyLower === "no" || bodyLower === "cancel") {
+            pendingConfirmations.delete(sessionKey);
+            return {
+              handled: true,
+              reply: { text: "已取消操作。" },
+            };
+          }
+
+          // 用户回复了其他内容，再次提示
+          return {
+            handled: true,
+            reply: {
+           text: `请回复"确认"继续，或"取消"放弃。\n\n待处理请求：${pending.originalBody}`,
+            },
+          };
+        }
+
+        // ── 正常流程：扫描当前消息 ──────────────────────────────
+        const scanResult = await scanForRisks(body);
+        if (!scanResult.hasRisk) return undefined;
+
+        // 存储待确认状态（5 分钟超时）
+        pendingConfirmations.set(sessionKey, {
+          originalBody: body,
+          warning: scanResult.warning,
+          expiresAt: Date.now() + 5 * 60 * 1000,
+        });
+
       return {
-        handled: true,
-        reply: { text: `请回复"确认"继续或"取消"放弃。\n\n待处理请求：${pending.originalBody}` },
-      };
-    }
-
-    // 正常流程：扫描当前消息
-    const scanResult = await scanForRisks(event.cleanedBody);
-    if (!scanResult.hasRisk) return undefined;
-
-    //存储待确认状态（5分钟超时）
-    pendingConfirmations.set(sessionKey, {
-      originalBody: event.cleanedBody,
-      warning: scanResult.warning,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    });  return {
-      handled: true,
-      reply: {
-        text: `⚠安全检测：${scanResult.warning}\n\n您的请求已暂停。请回复"确认"继续执行，或"取消"放弃。`,
-      },
-    };
+          handled: true,
+          reply: {
+            text: [
+              `⚠安全检测：${scanResult.warning}`,
+              "",
+           "您的请求已暂停。请回复：",
+           "• **确认** — 继续执行",
+              "• **取消** — 放弃操作",
+            ].join("\n"),
+          },
+        };
+      });
+    },
   });
+
+  // 你自己的风险扫描函数
+  async function scanForRisks(body: string): Promise<{ hasRisk: boolean; warning: string }> {
+    // 实现你的检测逻辑
+    return { hasRisk: false, warning: "" };
+  }
+
+  ---
+  ##关键点说明
+
+  api 的来源：api 是register(api) 的参数，在 hook handler 里通过闭包访问，不是 hook 的参数。
+
+  register(api: OpenClawPluginApi) {
+    //      ↑ 这里拿到 api
+    api.on("before_agent_reply", async (event, ctx) => {
+      api.runtime.system.enqueueSystemEvent(...)  // 闭包访问
+      //  ↑ 闭包捕获，不是 ctx 上的属性
+    });
+  }
+
+  enqueueSystemEvent 签名（来自 src/infra/system-events.ts:90）：
+  enqueueSystemEvent(text: string, options: {
+    sessionKey: string;contextKey?: string | null;
+    deliveryContext?: DeliveryContext;
+    trusted?: boolean;
+  }): boolean
+
+  requestHeartbeatNow 签名（来自 src/infra/heartbeat-wake.ts:252）：
+  requestHeartbeatNow(opts?: {
+    reason?: string;
+    coalesceMs?: number;
+    agentId?: string;
+    sessionKey?: string;
+    heartbeat?: { target?: string };
+  }): void
+
+  两个函数都确认存在，路径 api.runtime.system.* 完全正确。
 
   流程图：
 
