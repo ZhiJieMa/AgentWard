@@ -293,3 +293,92 @@ before_agent_reply 返回 { handled: true } 后，原始用户消息被永久丢
       └── 无 pending，扫描消息
               ├── 有风险 → 存 pending，返回警告（拦截本轮）
               └── 无风险 → return undefined（正常走 Agent）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+稳定方案：subagent.run() 直接重放原始消息                                                                                                                                                                                                                                                                                  
+  完全不依赖模型理解，用代码层面替换消息内容：                                                                                                                                                                                                                                                                               
+  const pendingMap = new Map<string, string>(); // sessionKey → originalBody
+
+  api.on("before_agent_reply", async (event, ctx) => {
+    const sessionKey = ctx.sessionKey;
+    if (!sessionKey) return undefined;
+
+    const body = event.cleanedBody.trim();
+    const bodyLower = body.toLowerCase();
+
+    // ── 有待确认的请求 ──────────────────────────────────────
+    const pending = pendingMap.get(sessionKey);
+    if (pending) {
+      if (bodyLower === "确认" || bodyLower === "yes") {
+        const originalBody = pending.originalBody;
+        pendingMap.delete(sessionKey);
+
+        // 拦截"确认"消息，不让它进 agent
+        // 用 subagent.run 把原始消息重新投入同一个 session
+        api.runtime.subagent.run({
+          sessionKey,
+          message: originalBody,  // ← 原始消息，不是"确认"
+          deliver: true,           // ← 把回复发给用户
+        }).catch((err) => {
+          api.logger.error(`security-resume failed: ${err}`);
+        });
+
+        // 当前"确认"这条消息静默处理掉
+        return {
+          handled: true,
+          reply: { text: "已确认，正在处理..." },
+        };
+      }
+
+      if (bodyLower === "取消" || bodyLower === "no") {
+        pendingMap.delete(sessionKey);
+        return { handled: true, reply: { text: "已取消。" } };
+      }
+
+      // 其他回复，再次提示
+      return {
+        handled: true,
+        reply: { text: `请回复"确认"继续，或"取消"放弃。\n\n待处理：${pending.originalBody}` },
+      };
+    }
+
+    // ── 正常流程：扫描消息 ──────────────────────────────────
+    const risk = await scanForRisks(body);
+    if (!risk.hasRisk) return undefined;
+
+    pendingMap.set(sessionKey, body);
+    return {
+      handled: true,
+      reply: {
+        text: `⚠️${risk.warning}\n\n回复"确认"继续，或"取消"放弃。`,
+      },
+    };
+  });
+
+  ---
+  为什么这个方案稳定
+
+  ┌──────────────┬─────────────────────────────┬──────────────────────────────────────────────────┐
+  │     问题     │         之前的方案          │                    现在的方案                    │
+  ├──────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ 原始消息恢复 │ 依赖模型理解 prependContext │ 代码直接传入原始消息，模型收到的就是原始消息     │
+  ├──────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ 消息替换     │ 只能 prepend，无法替换      │ subagent.run({ message: originalBody }) 完全替换 │
+  ├──────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ 可靠性       │ 模型能力决定                │ 纯代码逻辑，100% 确定                            │
+  └──────────────┴─────────────────────────────┴──────────────────────────────────────────────────┘
